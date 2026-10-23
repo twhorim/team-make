@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트 학생 팀 빌더 | Smart Team Builder</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons & Canvas Confetti -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        @keyframes dramaticReveal {
+            0% {
+                opacity: 0;
+                transform: scale(0.65) translateY(12px);
+                filter: blur(4px);
+            }
+            70% {
+                transform: scale(1.08) translateY(-2px);
+                filter: blur(0);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        .animate-dramatic-reveal {
+            animation: dramaticReveal 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+        }
+        .active-reveal-card {
+            animation: pulseGlow 1.2s infinite;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center text-white shadow-md shadow-indigo-100">
+                    <i class="fa-solid fa-users-gear text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 tracking-tight leading-tight">스마트 팀 빌더</h1>
+                    <p class="text-xs text-slate-500 font-medium">학년·성별 균형 및 기피 조합 맞춤 배정 도구</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="sampleBtn" class="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors flex items-center space-x-1.5">
+                    <i class="fa-solid fa-magic-wand-sparkles"></i>
+                    <span>샘플 데이터 채우기</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Input and Configuration (4 Cols for optimal balance) -->
+        <section class="lg:col-span-4 space-y-6">
+
+            <!-- Step 1: Data Input Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                        <h2 class="font-bold text-slate-900 text-base">학생 명단 복사 / 붙여넣기</h2>
+                    </div>
+                    <span id="studentCountBadge" class="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-semibold">0명 인식됨</span>
+                </div>
+
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    엑셀이나 한글, 메모장에서 <span class="font-semibold text-slate-700">[학번/학년, 이름, 성별]</span> 또는 <span class="font-semibold text-slate-700">[이름, 성별, 학년]</span>을 자유롭게 복사해 넣으세요.<br>
+                    <span class="text-indigo-600">쉼표(,), 탭, 공백, 슬래시(/)</span> 구분자 및 입력 순서를 자동으로 판별합니다.
+                </p>
+
+                <div>
+                    <textarea id="rawInput" rows="6" placeholder="예시 1: 학년/학번 이름 성별
+10101 김철수 남
+10102 이영희 여
+2학년 박민수 남
+
+예시 2: 이름, 성별, 학년
+정수아, 여, 2학년
+최진우/남/1학년" class="w-full text-xs sm:text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono custom-scrollbar resize-y"></textarea>
+                </div>
+
+                <!-- Parsed Summary Mini Box -->
+                <div id="parseStats" class="hidden p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex flex-wrap gap-3 text-slate-600 justify-between">
+                    <div><i class="fa-solid fa-mars text-blue-500 mr-1"></i> 남: <b id="statMale" class="text-slate-800">0</b></div>
+                    <div><i class="fa-solid fa-venus text-pink-500 mr-1"></i> 여: <b id="statFemale" class="text-slate-800">0</b></div>
+                    <div><i class="fa-solid fa-graduation-cap text-amber-500 mr-1"></i> 학년/학번 구분: <span id="statGrades" class="font-medium text-slate-700">-</span></div>
+                </div>
+            </div>
+
+            <!-- Step 2: Team Rules & Settings -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5">
+                <div class="flex items-center space-x-2">
+                    <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                    <h2 class="font-bold text-slate-900 text-base">팀 구성 옵션 설정</h2>
+                </div>
+
+                <!-- Division Basis: By Team Count or By Size -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-700 block">팀 나누는 기준</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="cursor-pointer border border-slate-200 rounded-xl p-2.5 flex items-center space-x-2 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50 transition">
+                            <input type="radio" name="splitType" value="count" checked class="text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-xs font-medium text-slate-800">총 팀 개수 기준</span>
+                        </label>
+                        <label class="cursor-pointer border border-slate-200 rounded-xl p-2.5 flex items-center space-x-2 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50 transition">
+                            <input type="radio" name="splitType" value="size" class="text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-xs font-medium text-slate-800">팀당 인원수 기준</span>
+                        </label>
+                    </div>
+                    <div class="flex items-center space-x-3 pt-2">
+                        <span id="splitValueLabel" class="text-xs font-semibold text-slate-600">만들 팀 개수:</span>
+                        <div class="flex items-center space-x-2">
+                            <button type="button" id="decValue" class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 active:scale-95"><i class="fa-solid fa-minus text-xs"></i></button>
+                            <input type="number" id="splitValueInput" value="4" min="2" max="50" class="w-16 text-center border border-slate-200 rounded-lg p-1 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <button type="button" id="incValue" class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 active:scale-95"><i class="fa-solid fa-plus text-xs"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Balance Checkboxes -->
+                <div class="space-y-3 pt-2 border-t border-slate-100">
+                    <label class="text-xs font-bold text-slate-700 block">균등 분배 조건</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="balanceGender" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-xs font-medium text-slate-700">남/여 성별 비율을 균등하게 맞춤</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="balanceGrade" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span class="text-xs font-medium text-slate-700">학년/학번 비율을 균등하게 맞춤 (고·저학년 고루 배정)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Dramatic Presentation Settings -->
+                <div class="pt-2 border-t border-slate-100 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-clapperboard text-indigo-600"></i>
+                            <span>극적인 공개 연출 모드</span>
+                        </label>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="dramaticToggle" checked class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div id="dramaticOptions" class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center justify-between gap-2 text-xs">
+                        <span class="text-slate-600 font-medium">공개 속도:</span>
+                        <div class="flex items-center space-x-1.5">
+                            <label class="cursor-pointer px-2.5 py-1 rounded-md text-[11px] font-semibold transition has-[:checked]:bg-indigo-600 has-[:checked]:text-white text-slate-600 bg-white border border-slate-200">
+                                <input type="radio" name="revealSpeed" value="slow" class="hidden"> 천천히 (1초)
+                            </label>
+                            <label class="cursor-pointer px-2.5 py-1 rounded-md text-[11px] font-semibold transition has-[:checked]:bg-indigo-600 has-[:checked]:text-white text-slate-600 bg-white border border-slate-200">
+                                <input type="radio" name="revealSpeed" value="normal" checked class="hidden"> 보통 (0.5초)
+                            </label>
+                            <label class="cursor-pointer px-2.5 py-1 rounded-md text-[11px] font-semibold transition has-[:checked]:bg-indigo-600 has-[:checked]:text-white text-slate-600 bg-white border border-slate-200">
+                                <input type="radio" name="revealSpeed" value="fast" class="hidden"> 빠르게 (0.25초)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Options (formerly Prohibited Pairs) Trigger Button (Modal Trigger) -->
+                <div class="pt-2 border-t border-slate-100">
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                        <div>
+                            <p class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                                <i class="fa-solid fa-sliders text-indigo-600"></i>
+                                <span>추가 옵션</span>
+                            </p>
+                            <p class="text-[11px] text-slate-500 mt-0.5" id="prohibitedStatusText">추가 옵션: 0개</p>
+                        </div>
+                        <button type="button" id="openBanModalBtn" class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold rounded-lg shadow-2xs transition flex items-center space-x-1">
+                            <i class="fa-solid fa-gear text-indigo-600"></i>
+                            <span>설정 / 확인</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Generate Action Button -->
+                <button id="generateBtn" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:scale-[0.99] text-white font-bold rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center space-x-2 transition-all">
+                    <i class="fa-solid fa-shuffle text-base"></i>
+                    <span>조건에 맞춰 팀 생성하기</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Right Column: Results & Analysis (8 Cols) -->
+        <section class="lg:col-span-8 flex flex-col space-y-4">
+
+            <!-- Result Top bar -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-flag-checkered text-indigo-600"></i>
+                        <span>팀 구성 결과</span>
+                    </h2>
+                    <p id="resultSummaryText" class="text-xs text-slate-500 mt-0.5">명단을 입력하고 팀 생성 버튼을 눌러주세요.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="skipRevealBtn" class="hidden px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition items-center space-x-1.5 shadow-2xs">
+                        <i class="fa-solid fa-forward-step"></i>
+                        <span>즉시 전체 공개</span>
+                    </button>
+                    <button id="copyResultBtn" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center space-x-1.5 disabled:opacity-40" disabled>
+                        <i class="fa-regular fa-copy"></i>
+                        <span>결과 복사</span>
+                    </button>
+                    <button id="downloadTextBtn" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center space-x-1.5 disabled:opacity-40" disabled>
+                        <i class="fa-solid fa-file-arrow-down"></i>
+                        <span>텍스트 저장</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notice / Warning Toast Container -->
+            <div id="warningNotice" class="hidden p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-start space-x-2 shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5 text-sm"></i>
+                <div id="warningNoticeContent"></div>
+            </div>
+
+            <!-- Teams Grid Container: 1 col on mobile, 2 cols on tablet, 3 cols on desktop -->
+            <div id="teamsContainer" class="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <!-- Placeholder Empty State -->
+                <div class="col-span-full border-2 border-dashed border-slate-200 rounded-2xl p-12 flex flex-col items-center justify-center text-center text-slate-400">
+                    <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 text-2xl mb-3">
+                        <i class="fa-solid fa-people-group"></i>
+                    </div>
+                    <p class="font-medium text-slate-600">아직 생성된 팀이 없습니다.</p>
+                    <p class="text-xs text-slate-400 mt-1 max-w-sm">좌측에서 학생 명단을 붙여넣고 옵션을 설정한 뒤 [팀 생성하기] 버튼을 눌러주세요.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal: Additional Options (추가 옵션 설정 팝업) -->
+    <div id="banModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <!-- Modal Header -->
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-sm">추가 옵션 설정</h3>
+                        <p class="text-[11px] text-slate-500">서로 다른 팀으로 분리 배치할 학생 조합을 지정합니다.</p>
+                    </div>
+                </div>
+                <button type="button" id="closeBanModalBtn" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-5 space-y-4">
+                <!-- Add Pair Row -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700 block">분리 배치할 학생 쌍 추가</label>
+                    <div class="flex items-center space-x-2">
+                        <select id="banSelect1" class="w-1/2 p-2 text-xs border border-slate-200 rounded-lg bg-white outline-none focus:border-indigo-500">
+                            <option value="">학생 1 선택</option>
+                        </select>
+                        <span class="text-xs text-indigo-400 font-bold">&harr;</span>
+                        <select id="banSelect2" class="w-1/2 p-2 text-xs border border-slate-200 rounded-lg bg-white outline-none focus:border-indigo-500">
+                            <option value="">학생 2 선택</option>
+                        </select>
+                        <button type="button" id="addBanBtn" class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold rounded-lg shrink-0 transition">
+                            추가
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Registered List -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-700">현재 등록된 분리 목록</span>
+                        <span id="banCountLabel" class="text-[11px] text-slate-500">총 0개</span>
+                    </div>
+                    <div id="banListContainer" class="max-h-48 overflow-y-auto custom-scrollbar border border-slate-100 rounded-xl p-2.5 bg-slate-50/50 flex flex-wrap gap-1.5 min-h-[64px] items-start content-start">
+                        <span class="text-xs text-slate-400 italic py-1">설정된 추가 옵션이 없습니다.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <button type="button" id="confirmBanModalBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+                    확인 및 닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Notification Toast -->
+    <div id="toastMessage" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span id="toastText">알림 내용</span>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // State
+        let parsedStudents = [];
+        let prohibitedPairs = []; // Array of arrays: [['철수', '영희']]
+        let generatedTeams = [];
+        let isRevealing = false;
+        let revealTimeoutId = null;
+
+        // DOM Elements
+        const rawInput = document.getElementById('rawInput');
+        const studentCountBadge = document.getElementById('studentCountBadge');
+        const parseStats = document.getElementById('parseStats');
+        const statMale = document.getElementById('statMale');
+        const statFemale = document.getElementById('statFemale');
+        const statGrades = document.getElementById('statGrades');
+        const banModal = document.getElementById('banModal');
+        const openBanModalBtn = document.getElementById('openBanModalBtn');
+        const closeBanModalBtn = document.getElementById('closeBanModalBtn');
+        const confirmBanModalBtn = document.getElementById('confirmBanModalBtn');
+        const prohibitedStatusText = document.getElementById('prohibitedStatusText');
+        const banCountLabel = document.getElementById('banCountLabel');
+        const banSelect1 = document.getElementById('banSelect1');
+        const banSelect2 = document.getElementById('banSelect2');
+        const addBanBtn = document.getElementById('addBanBtn');
+        const banListContainer = document.getElementById('banListContainer');
+        const generateBtn = document.getElementById('generateBtn');
+        const splitValueInput = document.getElementById('splitValueInput');
+        const splitValueLabel = document.getElementById('splitValueLabel');
+        const incValue = document.getElementById('incValue');
+        const decValue = document.getElementById('decValue');
+        const balanceGender = document.getElementById('balanceGender');
+        const balanceGrade = document.getElementById('balanceGrade');
+        const teamsContainer = document.getElementById('teamsContainer');
+        const sampleBtn = document.getElementById('sampleBtn');
+        const copyResultBtn = document.getElementById('copyResultBtn');
+        const downloadTextBtn = document.getElementById('downloadTextBtn');
+        const resultSummaryText = document.getElementById('resultSummaryText');
+        const warningNotice = document.getElementById('warningNotice');
+        const warningNoticeContent = document.getElementById('warningNoticeContent');
+        const dramaticToggle = document.getElementById('dramaticToggle');
+        const dramaticOptions = document.getElementById('dramaticOptions');
+        const skipRevealBtn = document.getElementById('skipRevealBtn');
+
+        // Toggle visibility of dramatic options
+        dramaticToggle.addEventListener('change', () => {
+            if (dramaticToggle.checked) {
+                dramaticOptions.classList.remove('opacity-40', 'pointer-events-none');
+            } else {
+                dramaticOptions.classList.add('opacity-40', 'pointer-events-none');
+            }
+        });
+
+        // Web Audio API Sound Generator (No external audio files needed)
+        let audioCtx = null;
+        function playRevealSound(pitch = 520, isFinal = false) {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (isFinal) {
+                    // Cheerful celebratory chord effect
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                    osc.frequency.exponentialRampToValueAtTime(1046.5, audioCtx.currentTime + 0.35); // C6
+                    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.5);
+                } else {
+                    // Soft pop sound
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(pitch, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(pitch * 1.3, audioCtx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.12);
+                }
+            } catch (e) {
+                // AudioContext autoplay restrictions or disabled sound fallback
+            }
+        }
+
+        // Modal Controls
+        openBanModalBtn.addEventListener('click', () => {
+            banModal.classList.remove('hidden');
+        });
+        closeBanModalBtn.addEventListener('click', () => {
+            banModal.classList.add('hidden');
+        });
+        confirmBanModalBtn.addEventListener('click', () => {
+            banModal.classList.add('hidden');
+        });
+        banModal.addEventListener('click', (e) => {
+            if (e.target === banModal) banModal.classList.add('hidden');
+        });
+
+        // Toast Helper
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toastMessage');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastText.textContent = message;
+            if (type === 'error') {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400 text-sm";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-sm";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 2500);
+        }
+
+        // Helper to check gender token
+        function getGenderFromToken(token) {
+            if (/^(남|남자|남학생|M|Male)$/i.test(token)) return '남';
+            if (/^(여|여자|여학생|F|Female)$/i.test(token)) return '여';
+            return null;
+        }
+
+        // Helper to check grade / student-id token
+        function getGradeOrIdFromToken(token) {
+            // Check for 학년 keyword or student id numbers (e.g. 10101, 1-1, 2학년, 3)
+            if (/학년|반|번/.test(token)) {
+                return token;
+            }
+            // If it consists primarily of numbers (like 10101, 20315 or 1, 2, 3)
+            if (/^\d+([-_]\d+)?$/.test(token)) {
+                // If it's a short 1-digit number, treat as grade; if multi-digit, student ID/grade
+                if (token.length <= 2) {
+                    return token + '학년';
+                }
+                return token; // student ID
+            }
+            return null;
+        }
+
+        // Parsing logic for text input (flexible order: [학번/학년, 이름, 성별] or [이름, 성별, 학번/학년] etc.)
+        function parseStudentData() {
+            const text = rawInput.value.trim();
+            if (!text) {
+                parsedStudents = [];
+                updateStatsView();
+                updateBanDropdowns();
+                return;
+            }
+
+            const lines = text.split('\n');
+            const students = [];
+
+            lines.forEach((line, idx) => {
+                const cleanLine = line.trim();
+                if (!cleanLine) return;
+
+                // Split tokens by commas, tabs, slashes, pipes, or whitespace
+                const tokens = cleanLine.split(/[\t,/|\s]+/).map(t => t.trim()).filter(Boolean);
+                if (tokens.length === 0) return;
+
+                let name = '';
+                let gender = '미지정';
+                let gradeOrId = '미지정';
+
+                // Categorize each token
+                const remainingTokens = [];
+                tokens.forEach(tok => {
+                    const detectedGender = getGenderFromToken(tok);
+                    if (detectedGender && gender === '미지정') {
+                        gender = detectedGender;
+                        return;
+                    }
+
+                    const detectedGrade = getGradeOrIdFromToken(tok);
+                    if (detectedGrade && gradeOrId === '미지정') {
+                        gradeOrId = detectedGrade;
+                        return;
+                    }
+
+                    remainingTokens.push(tok);
+                });
+
+                // The name is chosen from remaining tokens (first non-classified text)
+                if (remainingTokens.length > 0) {
+                    name = remainingTokens[0];
+                } else {
+                    // Fallback if token classification took everything
+                    name = tokens[0];
+                }
+
+                students.push({
+                    id: idx + 1,
+                    name: name,
+                    gender: gender,
+                    grade: gradeOrId
+                });
+            });
+
+            parsedStudents = students;
+            updateStatsView();
+            updateBanDropdowns();
+        }
+
+        function updateStatsView() {
+            const total = parsedStudents.length;
+            studentCountBadge.textContent = `${total}명 인식됨`;
+
+            if (total === 0) {
+                parseStats.classList.add('hidden');
+                return;
+            }
+
+            parseStats.classList.remove('hidden');
+            const males = parsedStudents.filter(s => s.gender === '남').length;
+            const females = parsedStudents.filter(s => s.gender === '여').length;
+            statMale.textContent = males;
+            statFemale.textContent = females;
+
+            // Grade/ID distribution
+            const gradeCounts = {};
+            parsedStudents.forEach(s => {
+                if (s.grade !== '미지정') {
+                    gradeCounts[s.grade] = (gradeCounts[s.grade] || 0) + 1;
+                }
+            });
+
+            const gradeKeys = Object.keys(gradeCounts);
+            if (gradeKeys.length > 0) {
+                statGrades.textContent = gradeKeys.slice(0, 4).map(k => `${k}(${gradeCounts[k]})`).join(', ') + (gradeKeys.length > 4 ? ' 외' : '');
+            } else {
+                statGrades.textContent = '정보 없음';
+            }
+        }
+
+        function updateBanDropdowns() {
+            const currentVal1 = banSelect1.value;
+            const currentVal2 = banSelect2.value;
+
+            banSelect1.innerHTML = '<option value="">학생 1 선택</option>';
+            banSelect2.innerHTML = '<option value="">학생 2 선택</option>';
+
+            const uniqueNames = Array.from(new Set(parsedStudents.map(s => s.name)));
+            uniqueNames.sort().forEach(name => {
+                const opt1 = document.createElement('option');
+                opt1.value = name;
+                opt1.textContent = name;
+                banSelect1.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = name;
+                opt2.textContent = name;
+                banSelect2.appendChild(opt2);
+            });
+
+            banSelect1.value = uniqueNames.includes(currentVal1) ? currentVal1 : "";
+            banSelect2.value = uniqueNames.includes(currentVal2) ? currentVal2 : "";
+        }
+
+        // Add Prohibited Pair
+        addBanBtn.addEventListener('click', () => {
+            const p1 = banSelect1.value;
+            const p2 = banSelect2.value;
+
+            if (!p1 || !p2) {
+                showToast('두 학생을 모두 선택해주세요.', 'error');
+                return;
+            }
+
+            if (p1 === p2) {
+                showToast('서로 다른 학생을 선택해야 합니다.', 'error');
+                return;
+            }
+
+            const exists = prohibitedPairs.some(pair => 
+                (pair[0] === p1 && pair[1] === p2) || (pair[0] === p2 && pair[1] === p1)
+            );
+
+            if (exists) {
+                showToast('이미 등록된 금지 조합입니다.', 'error');
+                return;
+            }
+
+            prohibitedPairs.push([p1, p2]);
+            renderBanList();
+            banSelect1.value = '';
+            banSelect2.value = '';
+            showToast('추가 옵션이 등록되었습니다.');
+        });
+
+        function renderBanList() {
+            banListContainer.innerHTML = '';
+            prohibitedStatusText.textContent = `추가 옵션: ${prohibitedPairs.length}개`;
+            banCountLabel.textContent = `총 ${prohibitedPairs.length}개`;
+
+            if (prohibitedPairs.length === 0) {
+                banListContainer.innerHTML = '<span class="text-xs text-slate-400 italic py-1">설정된 추가 옵션이 없습니다.</span>';
+                return;
+            }
+
+            prohibitedPairs.forEach((pair, idx) => {
+                const tag = document.createElement('div');
+                tag.className = 'inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold shadow-2xs';
+                tag.innerHTML = `
+                    <span>${pair[0]} &harr; ${pair[1]}</span>
+                    <button type="button" class="text-indigo-400 hover:text-indigo-700 ml-1" data-index="${idx}">
+                        <i class="fa-solid fa-xmark text-[11px]"></i>
+                    </button>
+                `;
+                tag.querySelector('button').addEventListener('click', () => {
+                    prohibitedPairs.splice(idx, 1);
+                    renderBanList();
+                });
+                banListContainer.appendChild(tag);
+            });
+        }
+
+        // Split criteria event handlers
+        document.querySelectorAll('input[name="splitType"]').forEach(r => {
+            r.addEventListener('change', () => {
+                if (r.value === 'count') {
+                    splitValueLabel.textContent = '만들 팀 개수:';
+                    splitValueInput.value = Math.max(2, Math.min(4, Math.ceil(parsedStudents.length / 4 || 4)));
+                } else {
+                    splitValueLabel.textContent = '팀당 인원수:';
+                    splitValueInput.value = 4;
+                }
+            });
+        });
+
+        incValue.addEventListener('click', () => {
+            splitValueInput.value = parseInt(splitValueInput.value, 10) + 1;
+        });
+
+        decValue.addEventListener('click', () => {
+            const current = parseInt(splitValueInput.value, 10);
+            if (current > 2) splitValueInput.value = current - 1;
+        });
+
+        rawInput.addEventListener('input', parseStudentData);
+
+        // Core Team Building Algorithm
+        function buildBalancedTeams() {
+            if (parsedStudents.length === 0) {
+                showToast('명단을 먼저 입력해주세요.', 'error');
+                return;
+            }
+
+            const splitMode = document.querySelector('input[name="splitType"]:checked').value;
+            const paramVal = parseInt(splitValueInput.value, 10) || 4;
+
+            let numTeams = 2;
+            if (splitMode === 'count') {
+                numTeams = Math.max(2, paramVal);
+            } else {
+                numTeams = Math.max(2, Math.ceil(parsedStudents.length / paramVal));
+            }
+
+            if (numTeams > parsedStudents.length) {
+                numTeams = parsedStudents.length;
+            }
+
+            const doBalanceGender = balanceGender.checked;
+            const doBalanceGrade = balanceGrade.checked;
+
+            // Target capacity per team
+            const total = parsedStudents.length;
+            const baseSize = Math.floor(total / numTeams);
+            const remainder = total % numTeams;
+            const teamCapacities = Array(numTeams).fill(baseSize).map((sz, idx) => idx < remainder ? sz + 1 : sz);
+
+            // Group students into categories (Buckets: Gender + Grade)
+            const buckets = {};
+            parsedStudents.forEach(st => {
+                const gKey = doBalanceGender ? st.gender : 'any';
+                const grKey = doBalanceGrade ? st.grade : 'any';
+                const key = `${gKey}_${grKey}`;
+                if (!buckets[key]) buckets[key] = [];
+                buckets[key].push({...st});
+            });
+
+            // Simulated Monte Carlo Search
+            let bestTeams = null;
+            let lowestPenalty = Infinity;
+            let conflictFoundInBest = false;
+
+            const ATTEMPTS = 450;
+
+            for (let iter = 0; iter < ATTEMPTS; iter++) {
+                const teams = Array.from({ length: numTeams }, (_, i) => ({
+                    id: i + 1,
+                    members: []
+                }));
+
+                const pool = [];
+                Object.keys(buckets).forEach(k => {
+                    const group = [...buckets[k]].sort(() => Math.random() - 0.5);
+                    pool.push(...group);
+                });
+
+                for (const student of pool) {
+                    const candidateTeams = teams.filter((t, i) => t.members.length < teamCapacities[i]);
+                    let chosenTeam = candidateTeams[0];
+                    let minCandidateScore = Infinity;
+
+                    const shuffledCandidates = [...candidateTeams].sort(() => Math.random() - 0.5);
+
+                    for (const candidate of shuffledCandidates) {
+                        let score = 0;
+
+                        // Check prohibited pairs violation (high penalty)
+                        const hasConflict = candidate.members.some(m => 
+                            prohibitedPairs.some(pair => 
+                                (pair[0] === student.name && pair[1] === m.name) ||
+                                (pair[1] === student.name && pair[0] === m.name)
+                            )
+                        );
+                        if (hasConflict) score += 10000;
+
+                        // Gender balance penalty
+                        if (doBalanceGender && student.gender !== '미지정') {
+                            const sameGenderCount = candidate.members.filter(m => m.gender === student.gender).length;
+                            score += sameGenderCount * 10;
+                        }
+
+                        // Grade balance penalty
+                        if (doBalanceGrade && student.grade !== '미지정') {
+                            const sameGradeCount = candidate.members.filter(m => m.grade === student.grade).length;
+                            score += sameGradeCount * 5;
+                        }
+
+                        if (score < minCandidateScore) {
+                            minCandidateScore = score;
+                            chosenTeam = candidate;
+                        }
+                    }
+
+                    if (chosenTeam) {
+                        chosenTeam.members.push(student);
+                    }
+                }
+
+                // Compute overall solution penalty
+                let currentPenalty = 0;
+                let conflicts = 0;
+
+                teams.forEach(team => {
+                    for (let a = 0; a < team.members.length; a++) {
+                        for (let b = a + 1; b < team.members.length; b++) {
+                            const m1 = team.members[a].name;
+                            const m2 = team.members[b].name;
+                            if (prohibitedPairs.some(p => (p[0] === m1 && p[1] === m2) || (p[0] === m2 && p[1] === m1))) {
+                                conflicts++;
+                                currentPenalty += 50000;
+                            }
+                        }
+                    }
+
+                    if (doBalanceGender) {
+                        const mCount = team.members.filter(m => m.gender === '남').length;
+                        const fCount = team.members.filter(m => m.gender === '여').length;
+                        currentPenalty += Math.abs(mCount - fCount) * 4;
+                    }
+                });
+
+                if (currentPenalty < lowestPenalty) {
+                    lowestPenalty = currentPenalty;
+                    bestTeams = teams;
+                    conflictFoundInBest = conflicts > 0;
+                    if (currentPenalty === 0) break;
+                }
+            }
+
+            generatedTeams = bestTeams;
+            renderTeamsResult(conflictFoundInBest);
+        }
+
+        // Render result with Dramatic Reveal support
+        function renderTeamsResult(hasConflict) {
+            if (revealTimeoutId) {
+                clearTimeout(revealTimeoutId);
+                revealTimeoutId = null;
+            }
+
+            teamsContainer.innerHTML = '';
+            copyResultBtn.disabled = true;
+            downloadTextBtn.disabled = true;
+
+            if (hasConflict) {
+                warningNotice.classList.remove('hidden');
+                warningNoticeContent.innerHTML = '<strong>알림:</strong> 인원수 및 팀 수의 한계로 인해 일부 <em>추가 옵션</em> 학생이 함께 배정되었습니다. 팀 수를 늘리거나 조건을 조정해보세요.';
+            } else {
+                warningNotice.classList.add('hidden');
+            }
+
+            resultSummaryText.textContent = `총 ${parsedStudents.length}명의 학생이 ${generatedTeams.length}개 팀으로 편성되었습니다.`;
+
+            const teamPalette = [
+                { border: 'border-indigo-200', bg: 'bg-indigo-50/40', badgeBg: 'bg-indigo-600' },
+                { border: 'border-emerald-200', bg: 'bg-emerald-50/40', badgeBg: 'bg-emerald-600' },
+                { border: 'border-amber-200', bg: 'bg-amber-50/40', badgeBg: 'bg-amber-600' },
+                { border: 'border-rose-200', bg: 'bg-rose-50/40', badgeBg: 'bg-rose-600' },
+                { border: 'border-purple-200', bg: 'bg-purple-50/40', badgeBg: 'bg-purple-600' },
+                { border: 'border-cyan-200', bg: 'bg-cyan-50/40', badgeBg: 'bg-cyan-600' },
+            ];
+
+            // Build Team Card Shells
+            generatedTeams.forEach((team, tIdx) => {
+                const palette = teamPalette[tIdx % teamPalette.length];
+                const card = document.createElement('div');
+                card.id = `teamCard-${team.id}`;
+                card.className = `bg-white border ${palette.border} rounded-2xl p-4 shadow-sm flex flex-col justify-between transition-all hover:shadow-md`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2.5 py-1 rounded-lg ${palette.badgeBg} text-white text-xs font-bold shadow-2xs">
+                                    팀 ${team.id}
+                                </span>
+                                <span class="text-xs font-bold text-slate-800" id="teamMemberCount-${team.id}">0 / ${team.members.length}명</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-[11px] text-slate-500 font-medium">
+                                <span><i class="fa-solid fa-mars text-blue-500"></i> <b id="teamMaleCount-${team.id}">0</b></span>
+                                <span><i class="fa-solid fa-venus text-pink-500"></i> <b id="teamFemaleCount-${team.id}">0</b></span>
+                            </div>
+                        </div>
+
+                        <!-- Member list: Display only Name & Gender -->
+                        <div class="space-y-1.5 pt-3 min-h-[50px]" id="teamMemberList-${team.id}"></div>
+                    </div>
+                `;
+                teamsContainer.appendChild(card);
+            });
+
+            const isDramatic = dramaticToggle.checked;
+
+            if (!isDramatic) {
+                // Immediate Instant Reveal
+                showAllMembersInstantly();
+                finishReveal();
+            } else {
+                // Dramatic Sequenced Reveal (Round-Robin by team)
+                startDramaticReveal();
+            }
+        }
+
+        // Helper to generate a member row DOM element
+        function createMemberElement(member, isAnimated = true) {
+            const isMale = member.gender === '남';
+            const isFemale = member.gender === '여';
+            const badgeColor = isMale ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                              (isFemale ? 'bg-pink-50 text-pink-700 border-pink-200' : 'bg-slate-50 text-slate-500 border-slate-200');
+
+            const row = document.createElement('div');
+            row.className = `flex items-center justify-between p-2 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-100/70 transition shadow-2xs ${isAnimated ? 'animate-dramatic-reveal' : ''}`;
+            row.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span class="w-6 h-6 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-600 flex items-center justify-center">
+                        ${member.name[0] || '•'}
+                    </span>
+                    <span class="text-xs font-bold text-slate-800">${member.name}</span>
+                </div>
+                <div>
+                    ${member.gender !== '미지정' ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}">${member.gender}</span>` : '<span class="text-[10px] text-slate-400">-</span>'}
+                </div>
+            `;
+            return row;
+        }
+
+        function showAllMembersInstantly() {
+            generatedTeams.forEach(team => {
+                const listEl = document.getElementById(`teamMemberList-${team.id}`);
+                const countEl = document.getElementById(`teamMemberCount-${team.id}`);
+                const maleEl = document.getElementById(`teamMaleCount-${team.id}`);
+                const femaleEl = document.getElementById(`teamFemaleCount-${team.id}`);
+
+                listEl.innerHTML = '';
+                let mCount = 0;
+                let fCount = 0;
+
+                team.members.forEach(m => {
+                    if (m.gender === '남') mCount++;
+                    if (m.gender === '여') fCount++;
+                    listEl.appendChild(createMemberElement(m, false));
+                });
+
+                countEl.textContent = `${team.members.length}명`;
+                maleEl.textContent = mCount;
+                femaleEl.textContent = fCount;
+
+                const card = document.getElementById(`teamCard-${team.id}`);
+                card.classList.remove('active-reveal-card');
+            });
+        }
+
+        function startDramaticReveal() {
+            isRevealing = true;
+            skipRevealBtn.classList.remove('hidden');
+            skipRevealBtn.classList.add('flex');
+            generateBtn.disabled = true;
+            generateBtn.classList.add('opacity-50', 'pointer-events-none');
+
+            // Collect all members in a round-robin order across teams for suspense
+            const queue = [];
+            const maxMembers = Math.max(...generatedTeams.map(t => t.members.length));
+
+            for (let idx = 0; idx < maxMembers; idx++) {
+                generatedTeams.forEach(team => {
+                    if (team.members[idx]) {
+                        queue.push({
+                            teamId: team.id,
+                            member: team.members[idx],
+                            totalTeamMembers: team.members.length
+                        });
+                    }
+                });
+            }
+
+            // Speed map
+            const speedChoice = document.querySelector('input[name="revealSpeed"]:checked')?.value || 'normal';
+            const speedMap = {
+                slow: 950,
+                normal: 500,
+                fast: 260
+            };
+            const interval = speedMap[speedChoice];
+
+            let step = 0;
+
+            function revealNext() {
+                if (!isRevealing) return;
+
+                if (step >= queue.length) {
+                    finishReveal(true);
+                    return;
+                }
+
+                const item = queue[step];
+                const listEl = document.getElementById(`teamMemberList-${item.teamId}`);
+                const countEl = document.getElementById(`teamMemberCount-${item.teamId}`);
+                const maleEl = document.getElementById(`teamMaleCount-${item.teamId}`);
+                const femaleEl = document.getElementById(`teamFemaleCount-${item.teamId}`);
+                const card = document.getElementById(`teamCard-${item.teamId}`);
+
+                // Visual focus on current team
+                document.querySelectorAll('.active-reveal-card').forEach(el => el.classList.remove('active-reveal-card'));
+                card.classList.add('active-reveal-card');
+
+                // Append member
+                listEl.appendChild(createMemberElement(item.member, true));
+
+                // Recount
+                const currentDisplayed = listEl.children.length;
+                countEl.textContent = `${currentDisplayed} / ${item.totalTeamMembers}명`;
+                if (currentDisplayed === item.totalTeamMembers) {
+                    countEl.textContent = `${item.totalTeamMembers}명`;
+                }
+
+                // Update gender counters
+                let mCount = 0;
+                let fCount = 0;
+                const membersSoFar = generatedTeams.find(t => t.id === item.teamId).members.slice(0, currentDisplayed);
+                membersSoFar.forEach(m => {
+                    if (m.gender === '남') mCount++;
+                    if (m.gender === '여') fCount++;
+                });
+                maleEl.textContent = mCount;
+                femaleEl.textContent = fCount;
+
+                // Sound Effect (Pitch ascends slightly with progress)
+                const baseFreq = 480 + (step * 8);
+                playRevealSound(baseFreq, step === queue.length - 1);
+
+                step++;
+                revealTimeoutId = setTimeout(revealNext, interval);
+            }
+
+            revealNext();
+        }
+
+        function finishReveal(withConfetti = false) {
+            isRevealing = false;
+            if (revealTimeoutId) {
+                clearTimeout(revealTimeoutId);
+                revealTimeoutId = null;
+            }
+
+            document.querySelectorAll('.active-reveal-card').forEach(el => el.classList.remove('active-reveal-card'));
+            skipRevealBtn.classList.add('hidden');
+            skipRevealBtn.classList.remove('flex');
+            generateBtn.disabled = false;
+            generateBtn.classList.remove('opacity-50', 'pointer-events-none');
+            copyResultBtn.disabled = false;
+            downloadTextBtn.disabled = false;
+
+            if (withConfetti && typeof confetti === 'function') {
+                playRevealSound(700, true);
+                confetti({
+                    particleCount: 65,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            showToast('모든 팀원 공개가 완료되었습니다!');
+        }
+
+        // Skip button handler
+        skipRevealBtn.addEventListener('click', () => {
+            if (!isRevealing) return;
+            if (revealTimeoutId) clearTimeout(revealTimeoutId);
+            showAllMembersInstantly();
+            finishReveal(true);
+        });
+
+        // Export/Copy text format: Only Name and Gender
+        function generateExportText() {
+            if (generatedTeams.length === 0) return '';
+            let text = `[스마트 팀 빌더 편성 결과]\n\n`;
+            generatedTeams.forEach(t => {
+                const membersStr = t.members.map(m => {
+                    return m.gender !== '미지정' ? `${m.name}(${m.gender})` : m.name;
+                }).join(', ');
+                text += `■ 팀 ${t.id} (${t.members.length}명)\n  : ${membersStr}\n\n`;
+            });
+            return text.trim();
+        }
+
+        copyResultBtn.addEventListener('click', () => {
+            const content = generateExportText();
+            if (!content) return;
+
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = content;
+            tempTextArea.style.position = 'fixed';
+            tempTextArea.style.opacity = '0';
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('클립보드에 결과가 복사되었습니다!');
+            } catch (err) {
+                showToast('복사에 실패했습니다.', 'error');
+            }
+            document.body.removeChild(tempTextArea);
+        });
+
+        downloadTextBtn.addEventListener('click', () => {
+            const content = generateExportText();
+            if (!content) return;
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `팀구성_결과_${new Date().toISOString().slice(0,10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('텍스트 파일로 다운로드되었습니다.');
+        });
+
+        // Sample Data Generation
+        sampleBtn.addEventListener('click', () => {
+            // Mixed format: some with student IDs first, some with names first
+            const sampleData = [
+                "10101 김민준 남",
+                "10102 이서연 여",
+                "10203 박도윤 남",
+                "10204 정지우 여",
+                "20101 최시우 남",
+                "20102 강서아 여",
+                "20203 조하준 남",
+                "20204 윤지유 여",
+                "30101 장예준 남",
+                "30102 임채원 여",
+                "30203 한은우 남",
+                "30204 오수아 여",
+                "10305 신유준 남",
+                "10306 송다은 여",
+                "20307 황선우 남",
+                "30308 안지아 여"
+            ].join('\n');
+
+            rawInput.value = sampleData;
+            parseStudentData();
+
+            // Default prohibited pair for demonstration
+            prohibitedPairs = [
+                ["김민준", "박도윤"]
+            ];
+            renderBanList();
+            showToast('샘플 명단과 추가 옵션이 입력되었습니다.');
+        });
+
+        generateBtn.addEventListener('click', buildBalancedTeams);
+
+        // Initial setup
+        parseStudentData();
+        renderBanList();
+    </script>
+</body>
+</html>
