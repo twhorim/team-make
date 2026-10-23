@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스마트 학생 팀 빌더 | Smart Team Builder</title>
+    <title>문태고 과학 정보 아이디어톤 팀 빌더</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -26,6 +26,8 @@
     <!-- FontAwesome Icons & Canvas Confetti -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- SheetJS (xlsx) CDN for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
         body {
@@ -77,11 +79,11 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center text-white shadow-md shadow-indigo-100">
-                    <i class="fa-solid fa-users-gear text-lg"></i>
+                    <i class="fa-solid fa-atom text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-lg font-bold text-slate-900 tracking-tight leading-tight">스마트 팀 빌더</h1>
-                    <p class="text-xs text-slate-500 font-medium">학년·성별 균형 및 기피 조합 맞춤 배정 도구</p>
+                    <h1 class="text-lg font-bold text-slate-900 tracking-tight leading-tight">문태고 과학 정보 아이디어톤 팀 빌더</h1>
+                    <p class="text-xs text-slate-500 font-medium">아이디어톤 학년·성별 균형 및 추가 옵션 맞춤 배정 도구</p>
                 </div>
             </div>
             <div class="flex items-center space-x-2">
@@ -111,17 +113,17 @@
 
                 <p class="text-xs text-slate-500 leading-relaxed">
                     엑셀이나 한글, 메모장에서 <span class="font-semibold text-slate-700">[학번/학년, 이름, 성별]</span> 또는 <span class="font-semibold text-slate-700">[이름, 성별, 학년]</span>을 자유롭게 복사해 넣으세요.<br>
-                    <span class="text-indigo-600">쉼표(,), 탭, 공백, 슬래시(/)</span> 구분자 및 입력 순서를 자동으로 판별합니다.
+                    <span class="text-indigo-600">이름 사이 띄어쓰기(예: 김 철 수)</span>, 쉼표(,), 탭, 공백, 슬래시(/) 구분자를 똑똑하게 자동 판별합니다.
                 </p>
 
                 <div>
                     <textarea id="rawInput" rows="6" placeholder="예시 1: 학년/학번 이름 성별
-10101 김철수 남
+10101 김 철 수 남
 10102 이영희 여
-2학년 박민수 남
+2학년 박 민 수 남
 
 예시 2: 이름, 성별, 학년
-정수아, 여, 2학년
+정 수 아, 여, 2학년
 최진우/남/1학년" class="w-full text-xs sm:text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono custom-scrollbar resize-y"></textarea>
                 </div>
 
@@ -253,6 +255,10 @@
                         <i class="fa-regular fa-copy"></i>
                         <span>결과 복사</span>
                     </button>
+                    <button id="downloadExcelBtn" class="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition flex items-center space-x-1.5 disabled:opacity-40" disabled>
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>엑셀 다운로드</span>
+                    </button>
                     <button id="downloadTextBtn" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center space-x-1.5 disabled:opacity-40" disabled>
                         <i class="fa-solid fa-file-arrow-down"></i>
                         <span>텍스트 저장</span>
@@ -381,6 +387,7 @@
         const teamsContainer = document.getElementById('teamsContainer');
         const sampleBtn = document.getElementById('sampleBtn');
         const copyResultBtn = document.getElementById('copyResultBtn');
+        const downloadExcelBtn = document.getElementById('downloadExcelBtn');
         const downloadTextBtn = document.getElementById('downloadTextBtn');
         const resultSummaryText = document.getElementById('resultSummaryText');
         const warningNotice = document.getElementById('warningNotice');
@@ -482,7 +489,11 @@
             return null;
         }
 
-        // Helper to check grade / student-id token
+        // Helper to check if a token is a single Korean letter or short syllable likely part of a spaced name
+        function isKoreanCharToken(tok) {
+            return /^[가-힣]{1,2}$/.test(tok) && !getGenderFromToken(tok) && !getGradeOrIdFromToken(tok);
+        }
+
         function getGradeOrIdFromToken(token) {
             // Check for 학년 keyword or student id numbers (e.g. 10101, 1-1, 2학년, 3)
             if (/학년|반|번/.test(token)) {
@@ -500,6 +511,7 @@
         }
 
         // Parsing logic for text input (flexible order: [학번/학년, 이름, 성별] or [이름, 성별, 학번/학년] etc.)
+        // Supports spaced names up to 3 Korean characters: e.g. "김 철 수" -> "김철수"
         function parseStudentData() {
             const text = rawInput.value.trim();
             if (!text) {
@@ -516,9 +528,34 @@
                 const cleanLine = line.trim();
                 if (!cleanLine) return;
 
-                // Split tokens by commas, tabs, slashes, pipes, or whitespace
-                const tokens = cleanLine.split(/[\t,/|\s]+/).map(t => t.trim()).filter(Boolean);
+                // Split tokens by commas, tabs, slashes, pipes, or consecutive whitespaces
+                let tokens = cleanLine.split(/[\t,/|]+/).flatMap(part => part.trim().split(/\s+/)).filter(Boolean);
                 if (tokens.length === 0) return;
+
+                // Pre-process: detect spaced names (e.g. ["김", "철", "수"] or ["박", "민수"] up to 3 characters)
+                const mergedTokens = [];
+                for (let i = 0; i < tokens.length; i++) {
+                    const t1 = tokens[i];
+                    // Check if 3 consecutive single/double hangul syllables form a name of length <= 3
+                    if (i + 2 < tokens.length && isKoreanCharToken(t1) && isKoreanCharToken(tokens[i+1]) && isKoreanCharToken(tokens[i+2])) {
+                        const combined = t1 + tokens[i+1] + tokens[i+2];
+                        if (combined.length <= 3) {
+                            mergedTokens.push(combined);
+                            i += 2;
+                            continue;
+                        }
+                    }
+                    // Check if 2 consecutive syllables form a name of length <= 3 (e.g. "김" "철수" or "홍" "길동")
+                    if (i + 1 < tokens.length && isKoreanCharToken(t1) && isKoreanCharToken(tokens[i+1])) {
+                        const combined = t1 + tokens[i+1];
+                        if (combined.length <= 3) {
+                            mergedTokens.push(combined);
+                            i += 1;
+                            continue;
+                        }
+                    }
+                    mergedTokens.push(t1);
+                }
 
                 let name = '';
                 let gender = '미지정';
@@ -526,7 +563,7 @@
 
                 // Categorize each token
                 const remainingTokens = [];
-                tokens.forEach(tok => {
+                mergedTokens.forEach(tok => {
                     const detectedGender = getGenderFromToken(tok);
                     if (detectedGender && gender === '미지정') {
                         gender = detectedGender;
@@ -544,15 +581,15 @@
 
                 // The name is chosen from remaining tokens (first non-classified text)
                 if (remainingTokens.length > 0) {
-                    name = remainingTokens[0];
+                    name = remainingTokens.join(''); // merge in case there was remaining split
                 } else {
                     // Fallback if token classification took everything
-                    name = tokens[0];
+                    name = mergedTokens[0];
                 }
 
                 students.push({
                     id: idx + 1,
-                    name: name,
+                    name: name.replace(/\s+/g, ''), // normalize name
                     gender: gender,
                     grade: gradeOrId
                 });
@@ -845,6 +882,7 @@
 
             teamsContainer.innerHTML = '';
             copyResultBtn.disabled = true;
+            downloadExcelBtn.disabled = true;
             downloadTextBtn.disabled = true;
 
             if (hasConflict) {
@@ -1053,6 +1091,7 @@
             generateBtn.disabled = false;
             generateBtn.classList.remove('opacity-50', 'pointer-events-none');
             copyResultBtn.disabled = false;
+            downloadExcelBtn.disabled = false;
             downloadTextBtn.disabled = false;
 
             if (withConfetti && typeof confetti === 'function') {
@@ -1078,7 +1117,7 @@
         // Export/Copy text format: Only Name and Gender
         function generateExportText() {
             if (generatedTeams.length === 0) return '';
-            let text = `[스마트 팀 빌더 편성 결과]\n\n`;
+            let text = `[문태고 과학 정보 아이디어톤 팀 편성 결과]\n\n`;
             generatedTeams.forEach(t => {
                 const membersStr = t.members.map(m => {
                     return m.gender !== '미지정' ? `${m.name}(${m.gender})` : m.name;
@@ -1114,32 +1153,101 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `팀구성_결과_${new Date().toISOString().slice(0,10)}.txt`;
+            a.download = `문태고_아이디어톤_팀편성_${new Date().toISOString().slice(0,10)}.txt`;
             a.click();
             URL.revokeObjectURL(url);
             showToast('텍스트 파일로 다운로드되었습니다.');
         });
 
+        // Export to Excel (.xlsx) using SheetJS - completely compatible with Google Sheets & MS Excel
+        downloadExcelBtn.addEventListener('click', () => {
+            if (generatedTeams.length === 0) return;
+            try {
+                // Layout 1: Team Columns Side-by-Side (Ideal for printing & Google Sheets)
+                const maxMembers = Math.max(...generatedTeams.map(t => t.members.length));
+                const wsData = [];
+
+                // Header Row 1: Team Titles
+                const headerRow = [];
+                generatedTeams.forEach(t => {
+                    headerRow.push(`팀 ${t.id} (${t.members.length}명)`);
+                    headerRow.push('성별');
+                    headerRow.push(''); // Spacer column
+                });
+                wsData.push(headerRow);
+
+                // Subheader Row 2: Field names
+                const subHeaderRow = [];
+                generatedTeams.forEach(() => {
+                    subHeaderRow.push('이름');
+                    subHeaderRow.push('성별');
+                    subHeaderRow.push('');
+                });
+                wsData.push(subHeaderRow);
+
+                // Rows for members
+                for (let rowIdx = 0; rowIdx < maxMembers; rowIdx++) {
+                    const row = [];
+                    generatedTeams.forEach(t => {
+                        const m = t.members[rowIdx];
+                        if (m) {
+                            row.push(m.name);
+                            row.push(m.gender !== '미지정' ? m.gender : '-');
+                        } else {
+                            row.push('');
+                            row.push('');
+                        }
+                        row.push(''); // spacer
+                    });
+                    wsData.push(row);
+                }
+
+                // Summary Row: Gender Breakdown
+                wsData.push([]);
+                const summaryRow = [];
+                generatedTeams.forEach(t => {
+                    const mCount = t.members.filter(m => m.gender === '남').length;
+                    const fCount = t.members.filter(m => m.gender === '여').length;
+                    summaryRow.push(`남 ${mCount} / 여 ${fCount}`);
+                    summaryRow.push('');
+                    summaryRow.push('');
+                });
+                wsData.push(summaryRow);
+
+                // Create Worksheet & Workbook
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "아이디어톤_팀구성");
+
+                // Download File
+                const today = new Date().toISOString().slice(0, 10);
+                XLSX.writeFile(wb, `문태고_아이디어톤_팀구성_${today}.xlsx`);
+                showToast('엑셀(.xlsx) 파일이 다운로드되었습니다.');
+            } catch (err) {
+                showToast('엑셀 생성 중 오류가 발생했습니다.', 'error');
+            }
+        });
+
         // Sample Data Generation
         sampleBtn.addEventListener('click', () => {
-            // Mixed format: some with student IDs first, some with names first
+            // Mixed format: some with spaces in names (김 철 수, 박 민 수), student IDs first, names first
             const sampleData = [
-                "10101 김민준 남",
+                "10101 김 철 수 남",
                 "10102 이서연 여",
-                "10203 박도윤 남",
+                "10203 박 민 수 남",
                 "10204 정지우 여",
-                "20101 최시우 남",
+                "20101 최 시 우 남",
                 "20102 강서아 여",
-                "20203 조하준 남",
+                "20203 조 하 준 남",
                 "20204 윤지유 여",
                 "30101 장예준 남",
-                "30102 임채원 여",
+                "30102 임 채 원 여",
                 "30203 한은우 남",
-                "30204 오수아 여",
+                "30204 오 수 아 여",
                 "10305 신유준 남",
                 "10306 송다은 여",
                 "20307 황선우 남",
-                "30308 안지아 여"
+                "30308 안 지 아 여"
             ].join('\n');
 
             rawInput.value = sampleData;
@@ -1147,10 +1255,10 @@
 
             // Default prohibited pair for demonstration
             prohibitedPairs = [
-                ["김민준", "박도윤"]
+                ["김철수", "박민수"]
             ];
             renderBanList();
-            showToast('샘플 명단과 추가 옵션이 입력되었습니다.');
+            showToast('샘플 명단(띄어쓰기 포함)과 추가 옵션이 입력되었습니다.');
         });
 
         generateBtn.addEventListener('click', buildBalancedTeams);
